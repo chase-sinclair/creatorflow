@@ -7,7 +7,8 @@
       "Bash(npm run:*)",
       "Bash(curl -s http://localhost:8001/health)",
       "Bash(curl -s http://localhost:8001/api/brainstorm/start -X POST -H \"Content-Type: application/json\" -d '{}')",
-      "Bash(curl -s http://localhost:8001/api/content/examples)"
+      "Bash(curl -s http://localhost:8001/api/content/examples)",
+      "Bash(curl -s http://localhost:5173)"
     ]
   }
 }

@@ -239,43 +239,42 @@ creatorflow/
 
 ---
 
-### Phase 1 — Project Scaffold & Environment Setup
+### Phase 1 — Project Scaffold & Environment Setup ✅ COMPLETE
 
-**Goal:** Get a working skeleton of both frontend and backend running locally with no functionality yet — just structure, routing, and connectivity confirmed.
+**What was built:**
+- Vite + React frontend with react-router-dom, tailwindcss, framer-motion, reactflow, axios
+- Dark violet brand palette via CSS variables in `index.css`; Tailwind v4 with `@tailwindcss/vite`
+- 4 pages + routing: `/`, `/brainstorm`, `/workflow/:workflowId`, `/share/:token`
+- `Navbar` component with logo and "Start Building" CTA
+- FastAPI backend with `GET /health`, placeholder routers for brainstorm/workflow/content
+- `backend/agents/state.py` with full `CreatorFlowState` TypedDict
+- `.env` files for both frontend and backend
+- **Backend runs on port 8001** (8000 is occupied by another process on this machine)
 
-**Tasks:**
-
-1. Initialize the React frontend using Vite (`npm create vite@latest frontend -- --template react`). Install dependencies: `react-router-dom`, `tailwindcss`, `framer-motion`, `reactflow`, `axios`.
-
-2. Configure Tailwind CSS fully. Set up a base color palette in `tailwind.config.js` that reflects a clean, modern SaaS aesthetic. Primary color should be a vibrant purple or blue-violet (CreatorFlow brand). Define CSS variables for consistent theming.
-
-3. Create the four page files: `index.jsx`, `brainstorm.jsx`, `workflow.jsx`, `share/[token].jsx`. Each page should render a placeholder heading and a brief description of what it will become. Set up `react-router-dom` routing connecting all four pages.
-
-4. Create a `Navbar` component that shows the CreatorFlow logo/name and a CTA button ("Start Building"). Add to all pages.
-
-5. Initialize the FastAPI backend. Create `main.py` with a health check endpoint `GET /health` that returns `{"status": "ok"}`. Create the router files (`brainstorm.py`, `workflow.py`, `content.py`) each with one placeholder endpoint returning a `{"message": "coming soon"}` response.
-
-6. Set up a `.env` file structure for both frontend and backend with placeholder keys for: `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `REDIS_URL`.
-
-7. Confirm frontend can make a successful API call to the backend health check endpoint and display the result on the page (proves CORS and connectivity).
-
-8. Set up the `CreatorFlowState` TypedDict in `backend/agents/state.py`.
-
-**Acceptance Criteria:**
-- `npm run dev` starts the frontend with all four routes accessible
-- `uvicorn main:app --reload` starts the backend with no errors
-- Frontend successfully calls `GET /health` and receives `{"status": "ok"}`
-- No placeholder content — pages should look intentional even if empty
+**Run commands:**
+- Frontend: `cd frontend && npm run dev` (port 5173)
+- Backend: `cd backend && source venv/Scripts/activate && uvicorn main:app --reload --port 8001`
 
 ---
-Future Phases...
+### Phase 2 — Discover Page (Static) ✅ COMPLETE
+
+**What was built:**
+- `HeroSection` — animated SVG workflow preview, headline, two CTAs ("Start Building" → `/brainstorm`, "See Examples" → `#examples` anchor)
+- `EducationSection` — 4 cards: what an agent is, what automation saves, workflow types, no coding needed
+- `ExampleGallery` — 6 hardcoded example cards with mini SVG node diagrams, platform tags, persona tags; click logs to console
+- `IdeaFuel` — persona tabs (Solo Creator / Marketing Team / Podcast Brand / Small Business), 3 prompt cards each; "Build this" navigates to `/brainstorm` with `state.prefill`
+- `Footer` — logo, tagline, link to brainstorm
+- All data hardcoded in `frontend/src/lib/constants.js`
+- Framer Motion scroll-triggered animations on all sections (`useInView`)
+- `html { scroll-behavior: smooth }` for anchor scrolling
+- Page title + meta description set in `index.html`
 ---
 
 ## Current Status
 
-**Active Phase:** Phase 1 — Project Scaffold & Environment Setup
+**Active Phase:** Phase 3 — Backend Core: LangGraph Pipeline
 
-**Completed Phases:** None
+**Completed Phases:** Phase 1, Phase 2
 
 ---
 
