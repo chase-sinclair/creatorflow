@@ -270,11 +270,26 @@ creatorflow/
 - Page title + meta description set in `index.html`
 ---
 
+### Phase 3 — Backend Core: LangGraph Pipeline ✅ COMPLETE
+
+**What was built:**
+- `backend/agents/state.py` — `CreatorFlowState` TypedDict with routing flags (`needs_clarification`, `ready_to_generate`) added
+- `backend/agents/nodes/` — 6 nodes: intake, clarification, classifier, designer (max_tokens: 2000), explainer, refinement
+- `backend/agents/graph.py` — LangGraph `StateGraph` with conditional edges: intake routes to clarification or classifier; clarification loops until `ready_to_generate=True` or `question_round >= 4`; classifier → designer → explainer → END
+- `backend/prompts/` — 6 prompt files (one per node), well-commented
+- `backend/agents/test_pipeline.py` — end-to-end test with pre-loaded answers; all assertions pass (5 nodes, 4 edges, valid summary, loop fired)
+- All nodes have 3-retry logic for API 529 overload errors
+- `backend/requirements.txt` generated
+
+**Test:** `cd backend && source venv/Scripts/activate && python agents/test_pipeline.py`
+
+---
+
 ## Current Status
 
-**Active Phase:** Phase 3 — Backend Core: LangGraph Pipeline
+**Active Phase:** Phase 4 — Backend API + Database Integration
 
-**Completed Phases:** Phase 1, Phase 2
+**Completed Phases:** Phase 1, Phase 2, Phase 3
 
 ---
 
