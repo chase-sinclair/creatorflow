@@ -1,9 +1,7 @@
-import { Link } from 'react-router-dom'
-
 export default function Footer() {
   return (
-    <footer className="border-t border-[var(--color-border)] py-10 px-6">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+    <footer className="border-t border-[var(--color-border)] py-8 px-6">
+      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -17,12 +15,7 @@ export default function Footer() {
           <span className="text-white font-semibold">CreatorFlow</span>
           <span className="text-slate-600 text-sm">— Design workflows visually, no code needed.</span>
         </div>
-        <Link
-          to="/brainstorm"
-          className="text-sm text-slate-400 hover:text-violet-300 transition-colors"
-        >
-          Start Building →
-        </Link>
+        <span className="text-slate-600 text-sm">© 2025 CreatorFlow</span>
       </div>
     </footer>
   )

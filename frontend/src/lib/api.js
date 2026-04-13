@@ -29,6 +29,12 @@ export const getWorkflow = (workflowId) =>
 export const shareWorkflow = (workflowId) =>
   api.post(`/api/workflow/${workflowId}/share`)
 
+export const exportWorkflow = (workflowId) =>
+  api.get(`/api/workflow/${workflowId}/export`, { responseType: 'blob' })
+
+export const getWorkflowByToken = (token) =>
+  api.get(`/api/workflow/share/${token}`)
+
 export const getExamples = () => api.get('/api/content/examples')
 
 export const getIdeas = () => api.get('/api/content/ideas')

@@ -302,11 +302,79 @@ creatorflow/
 
 ---
 
+### Phase 5 — Brainstorm Page (Frontend + API Integration) ✅ COMPLETE
+
+**What was built:**
+- `brainstorm.jsx` — full chat-style page: user messages right-aligned, bot messages left-aligned with logo avatar, typing indicator, inline error display
+- `components/shared/ProgressIndicator.jsx` — 3-step indicator; step prop controls active/done state
+- `components/brainstorm/GeneratingOverlay.jsx` — full-screen animated overlay with pulsing node graph and moving dot; shown during `workflow/generate` call
+- Confirmation card shown when `ready_to_generate: true`; "Looks good" triggers overlay + `POST /api/workflow/generate` → navigates to `/workflow/{id}`; "Let me adjust" re-opens input
+- "Build this" prefill: `IdeaFuel` passes `state.prefill` via router state; `brainstorm.jsx` reads it on mount and auto-submits
+- All API calls wired to `lib/api.js` helpers; errors shown inline without breaking chat thread
+
+**Post-phase UI refinements:**
+- Brainstorm page uses a **two-column layout** (`max-w-5xl`, `lg:flex-row`) before any session starts: left col (chat + input), right col (compact step cards + cycling workflow preview with "Example workflows" label). Collapses to single centered column (`max-w-2xl`) once conversation begins. On mobile, right col content appears inline above the input bar.
+- `StepCards` accepts a `compact` prop — row layout, tighter padding, smaller description text for the right column variant.
+- `WorkflowPreviewCycle` — 3 cycling SVG workflow patterns that build up node-by-node and edge-by-edge, cycling every ~3.2s. Sits in both the right column (desktop) and inline above input (mobile).
+- Textarea auto-expands as user types (capped at 120px, then scrolls internally).
+- Homepage: hero `min-h` reduced to 75vh, `WorkflowPreview` enlarged to `max-w-xl` with stronger dual-layer glow; `EducationSection` padding reduced `py-24 → py-16` to close whitespace gap; `Footer` CTA link replaced with `© 2025 CreatorFlow`.
+
+---
+
+### Phase 6 — Workflow Page (React Flow Visualization)
+
+**Goal:** Build the full workflow output page with the interactive React Flow graph, sidebar summary, and refinement chat.
+
+**Tasks:**
+
+1. Build `WorkflowPage` (`workflow.jsx`):
+   - On mount: call `GET /api/workflow/{workflow_id}` to load the workflow
+   - Left panel (70% width): React Flow canvas
+   - Right panel (30% width): Summary brief + refinement chat
+
+2. Build the React Flow canvas:
+   - Render nodes from `workflow_json.nodes` as custom `AgentNode` components
+   - Render edges from `workflow_json.edges` with animated flow lines
+   - Enable zoom, pan, and fit-to-view on load
+   - Add a minimap in the bottom right corner
+
+3. Build the `AgentNode` custom component:
+   - Default state: shows node label and a small icon indicating agent type
+   - Clean card design with a colored left border indicating position in flow (entry nodes green, processing nodes blue, output nodes purple)
+   - Clicking a node expands a detail panel below the canvas (or a modal) showing: description, tools, inputs, outputs
+   - An "Explain this whole workflow" button triggers a plain-English walkthrough rendered in the right sidebar
+
+4. Build the right panel:
+   - Top section: `SummaryBrief` component displaying the plain-English summary
+   - Metadata tags: platforms, automation level, archetype
+   - Bottom section: `RefinementChat` — a compact chat input where users can type follow-up requests ("Add an approval step before publishing"). On submit: call `POST /api/workflow/refine`, update the React Flow graph with the new `workflow_json`, append the `change_description` as a system message in the chat.
+
+5. Build the action bar above the canvas:
+   - "Export PDF" button — calls `GET /api/workflow/{workflow_id}/export`, triggers browser download
+   - "Share" button — calls `POST /api/workflow/{workflow_id}/share`, copies shareable URL to clipboard, shows a toast confirmation
+   - "Start Over" button — navigates back to `/brainstorm`
+
+6. Build the shared workflow view (`share/[token].jsx`):
+   - Fetches workflow by token (add a `GET /api/workflow/share/{token}` endpoint if needed)
+   - Renders the full React Flow canvas in read-only mode (no refinement chat, no export)
+   - Shows a prominent "Build your own workflow →" CTA that navigates to `/brainstorm`
+   - Increments `view_count` on load
+
+**Acceptance Criteria:**
+- Workflow graph renders correctly from API data with all nodes and edges
+- Clicking a node shows correct detail information
+- Refinement chat updates the graph in real time without page reload
+- PDF export downloads successfully
+- Share URL works and renders read-only view with CTA
+- React Flow canvas is smooth with no layout glitches
+
+---
+
 ## Current Status
 
-**Active Phase:** Phase 5 — Brainstorm Page (Frontend + API Integration)
+**Active Phase:** Phase 6 — Workflow Page (React Flow Visualization)
 
-**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4
+**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5
 
 ---
 
