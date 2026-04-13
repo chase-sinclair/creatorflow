@@ -285,11 +285,28 @@ creatorflow/
 
 ---
 
+### Phase 4 — Backend API + Database Integration ✅ COMPLETE
+
+**What was built:**
+- `backend/db/client.py` — Supabase singleton client
+- `backend/db/models.py` — All DB operations (sessions, workflows, examples, idea_prompts, stats)
+- `backend/db/create_tables.sql` — SQL migration (already run in Supabase)
+- `backend/services/cache.py` — Redis session state (2hr TTL, keyed by session_id)
+- `backend/services/summary.py` — Idea summary generator (Claude call, shown on confirmation card)
+- `backend/routers/brainstorm.py` — `POST /start`, `POST /respond` (nodes called directly, not via graph)
+- `backend/routers/workflow.py` — `POST /generate`, `POST /refine`, `GET /{id}`, `POST /{id}/share`, `GET /share/{token}`, `GET /{id}/export` (501 placeholder until Phase 7)
+- `backend/routers/content.py` — `GET /examples`, `GET /ideas`, `GET /stats` — all auto-seed on first call
+- All 11 endpoints tested and passing; full brainstorm → generate → refine → share flow verified against Supabase
+
+**Architecture note:** Brainstorm phase calls nodes directly (not through LangGraph pipeline). `workflow/generate` also calls nodes directly. The compiled `pipeline` in `graph.py` is available but not used in API layer — cleaner for incremental/partial execution.
+
+---
+
 ## Current Status
 
-**Active Phase:** Phase 4 — Backend API + Database Integration
+**Active Phase:** Phase 5 — Brainstorm Page (Frontend + API Integration)
 
-**Completed Phases:** Phase 1, Phase 2, Phase 3
+**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4
 
 ---
 
