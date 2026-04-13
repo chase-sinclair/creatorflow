@@ -321,60 +321,66 @@ creatorflow/
 
 ---
 
-### Phase 6 — Workflow Page (React Flow Visualization)
+### Phase 6 — Workflow Page (React Flow Visualization) ✅ COMPLETE
 
-**Goal:** Build the full workflow output page with the interactive React Flow graph, sidebar summary, and refinement chat.
+**What was built:**
+- `workflow.jsx` — full two-panel page (`h-screen overflow-hidden`): left = React Flow canvas + node detail panel, right = summary brief + refinement chat. Uses `location.state.workflowData` from brainstorm navigation to skip a redundant API fetch; falls back to `GET /api/workflow/{id}` otherwise.
+- DAG auto-layout: topological column assignment (longest path from root) → nodes positioned horizontally by column, vertically centered per column. Handles linear chains, diamond branches, and fan-out patterns.
+- `components/workflow/AgentNode.jsx` — custom React Flow node: colored left border + role badge (Entry / Agent / Output) keyed to graph position (emerald / violet / purple). Shows label + truncated description. Selection ring on click.
+- `NodeDetailPanel` — slides up from canvas bottom on node click, shows full description, tools, inputs, outputs in 3-column grid. Closes on X or pane click.
+- `SummaryBrief` (inline) — platforms, automation level, archetype tags + plain-English summary.
+- `RefinementChat` (inline) — compact chat input, calls `POST /api/workflow/refine`, updates React Flow graph in-place with new `workflow_json`.
+- Action bar: "Start over" → `/brainstorm`; "Export PDF" → calls endpoint (501 toast until Phase 7); "Share" → generates token, copies `origin/share/{token}` to clipboard, shows toast.
+- `share/token.jsx` — read-only shared view: fetches by token, same React Flow canvas with `nodesDraggable/nodesConnectable/elementsSelectable` all false, "Build your own workflow →" CTA in header and sidebar.
+- React Flow dark theme CSS overrides in `index.css` (controls, minimap, background, attribution hidden).
+- `api.js` additions: `exportWorkflow`, `getWorkflowByToken`.
+
+**Architecture note:** `NODE_TYPES` object defined outside all components (module-level constant) so React Flow never gets a new reference and avoids re-mounting nodes on re-render.
+
+---
+
+### Phase 7 — PDF Export & Polish
+
+**Goal:** Implement Puppeteer PDF export and apply final polish across the entire app.
 
 **Tasks:**
 
-1. Build `WorkflowPage` (`workflow.jsx`):
-   - On mount: call `GET /api/workflow/{workflow_id}` to load the workflow
-   - Left panel (70% width): React Flow canvas
-   - Right panel (30% width): Summary brief + refinement chat
+1. Install Puppeteer in the backend (`pip install pyppeteer` or use `puppeteer` via a Node subprocess). Build `backend/services/export.py` that:
+   - Takes a `workflow_id`
+   - Renders a styled HTML template combining the workflow summary brief, platform/automation metadata, and a static SVG representation of the workflow graph nodes and edges
+   - Generates a PDF and returns it as a binary response
+   - The PDF should look like a clean one-page brief — not a screenshot of the UI
 
-2. Build the React Flow canvas:
-   - Render nodes from `workflow_json.nodes` as custom `AgentNode` components
-   - Render edges from `workflow_json.edges` with animated flow lines
-   - Enable zoom, pan, and fit-to-view on load
-   - Add a minimap in the bottom right corner
+2. Connect `GET /api/workflow/{workflow_id}/export` to this service.
 
-3. Build the `AgentNode` custom component:
-   - Default state: shows node label and a small icon indicating agent type
-   - Clean card design with a colored left border indicating position in flow (entry nodes green, processing nodes blue, output nodes purple)
-   - Clicking a node expands a detail panel below the canvas (or a modal) showing: description, tools, inputs, outputs
-   - An "Explain this whole workflow" button triggers a plain-English walkthrough rendered in the right sidebar
+3. **App-wide polish pass:**
+   - Ensure all Framer Motion animations are smooth and purposeful — no janky transitions
+   - Ensure all loading states have appropriate feedback (spinners, skeleton screens, or descriptive text)
+   - Ensure all error states are handled with friendly messages
+   - Audit all user-facing copy for tone — everything should feel conversational and approachable, never technical
+   - Confirm full responsive behavior at 1440px, 1024px, and 768px widths
+   - Add page `<title>` and meta description tags for each page
 
-4. Build the right panel:
-   - Top section: `SummaryBrief` component displaying the plain-English summary
-   - Metadata tags: platforms, automation level, archetype
-   - Bottom section: `RefinementChat` — a compact chat input where users can type follow-up requests ("Add an approval step before publishing"). On submit: call `POST /api/workflow/refine`, update the React Flow graph with the new `workflow_json`, append the `change_description` as a system message in the chat.
+4. **Discover page final wiring:**
+   - Example workflow cards in the gallery should now open a modal showing the full React Flow preview of that workflow
+   - "Build this" on idea prompts should navigate to brainstorm with the prompt pre-filled
 
-5. Build the action bar above the canvas:
-   - "Export PDF" button — calls `GET /api/workflow/{workflow_id}/export`, triggers browser download
-   - "Share" button — calls `POST /api/workflow/{workflow_id}/share`, copies shareable URL to clipboard, shows a toast confirmation
-   - "Start Over" button — navigates back to `/brainstorm`
-
-6. Build the shared workflow view (`share/[token].jsx`):
-   - Fetches workflow by token (add a `GET /api/workflow/share/{token}` endpoint if needed)
-   - Renders the full React Flow canvas in read-only mode (no refinement chat, no export)
-   - Shows a prominent "Build your own workflow →" CTA that navigates to `/brainstorm`
-   - Increments `view_count` on load
+5. Add a simple workflow counter to the hero section ("X workflows designed") that reads from a Supabase count query.
 
 **Acceptance Criteria:**
-- Workflow graph renders correctly from API data with all nodes and edges
-- Clicking a node shows correct detail information
-- Refinement chat updates the graph in real time without page reload
-- PDF export downloads successfully
-- Share URL works and renders read-only view with CTA
-- React Flow canvas is smooth with no layout glitches
+- PDF export generates a clean, readable one-page brief
+- All transitions and animations feel polished
+- No broken states or unhandled errors anywhere in the happy path
+- Example workflow modals open and display React Flow previews
+- Workflow counter displays on hero
 
 ---
 
 ## Current Status
 
-**Active Phase:** Phase 6 — Workflow Page (React Flow Visualization)
+**Active Phase:** Phase 7 — PDF Export & Polish
 
-**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5
+**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6
 
 ---
 
