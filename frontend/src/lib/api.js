@@ -38,3 +38,5 @@ export const getWorkflowByToken = (token) =>
 export const getExamples = () => api.get('/api/content/examples')
 
 export const getIdeas = () => api.get('/api/content/ideas')
+
+export const getStats = () => api.get('/api/content/stats')

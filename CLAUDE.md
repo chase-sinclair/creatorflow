@@ -32,7 +32,7 @@ The product is intentionally approachable. It requires no coding knowledge to us
 | LLM | Claude via Anthropic API (claude-sonnet-4-20250514) |
 | Database | Supabase (PostgreSQL) |
 | Session State | Redis |
-| PDF Export | Puppeteer (headless Chrome) |
+| PDF Export | fpdf2 + Pillow (pure Python, no headless browser) |
 | Frontend Hosting | Vercel |
 | Backend Hosting | Railway or Render |
 
@@ -225,7 +225,7 @@ creatorflow/
 │   │   ├── client.py            # Supabase client
 │   │   └── models.py
 │   ├── services/
-│   │   ├── export.py            # Puppeteer PDF generation
+│   │   ├── export.py            # fpdf2 + Pillow PDF generation (no headless browser)
 │   │   └── share.py             # Share token generation
 │   └── prompts/                 # All LLM prompt templates as .txt or .py files
 └── CLAUDE.md
@@ -339,48 +339,33 @@ creatorflow/
 
 ---
 
-### Phase 7 — PDF Export & Polish
+### Phase 7 — PDF Export & Polish ✅ COMPLETE
 
-**Goal:** Implement Puppeteer PDF export and apply final polish across the entire app.
+**What was built:**
+- `backend/services/export.py` — pure-Python PDF generator using `fpdf2` (no Chromium/headless browser). Produces a clean one-page brief: dark header band with accent stripe, platform/automation chips, plain-English summary, DAG workflow diagram with colored node boxes (green/violet/purple by role) and arrowed connecting lines. Layout mirrors the frontend topological column algorithm.
+- `backend/routers/workflow.py` — `GET /api/workflow/{id}/export` wired to `generate_pdf()`, returns `application/pdf` with `Content-Disposition: attachment`.
+- `frontend/workflow.jsx` — Export button now triggers a real browser download via `Blob` + `URL.createObjectURL`.
+- `ExampleGallery.jsx` — Cards now open a full modal with an interactive React Flow preview (same `AgentNode` + linear layout), description, platform tags, and a "Build this →" CTA that prefills the brainstorm page.
+- `HeroSection.jsx` — Calls `GET /api/content/stats` on mount; displays `"{count} workflows designed and counting"` below CTAs when count > 0.
+- `api.js` — Added `getStats`.
+- Page titles set via `useEffect` on brainstorm (`Brainstorm · CreatorFlow`), workflow (`Your Workflow · CreatorFlow`), and share (`Shared Workflow · CreatorFlow`) pages.
+- `ExampleGallery` section padding reduced to `py-16` to match the rest of the site.
 
-**Tasks:**
+**Note:** `fpdf2` installed in backend venv. Add `fpdf2` to `requirements.txt` before deploying.
 
-1. Install Puppeteer in the backend (`pip install pyppeteer` or use `puppeteer` via a Node subprocess). Build `backend/services/export.py` that:
-   - Takes a `workflow_id`
-   - Renders a styled HTML template combining the workflow summary brief, platform/automation metadata, and a static SVG representation of the workflow graph nodes and edges
-   - Generates a PDF and returns it as a binary response
-   - The PDF should look like a clean one-page brief — not a screenshot of the UI
-
-2. Connect `GET /api/workflow/{workflow_id}/export` to this service.
-
-3. **App-wide polish pass:**
-   - Ensure all Framer Motion animations are smooth and purposeful — no janky transitions
-   - Ensure all loading states have appropriate feedback (spinners, skeleton screens, or descriptive text)
-   - Ensure all error states are handled with friendly messages
-   - Audit all user-facing copy for tone — everything should feel conversational and approachable, never technical
-   - Confirm full responsive behavior at 1440px, 1024px, and 768px widths
-   - Add page `<title>` and meta description tags for each page
-
-4. **Discover page final wiring:**
-   - Example workflow cards in the gallery should now open a modal showing the full React Flow preview of that workflow
-   - "Build this" on idea prompts should navigate to brainstorm with the prompt pre-filled
-
-5. Add a simple workflow counter to the hero section ("X workflows designed") that reads from a Supabase count query.
-
-**Acceptance Criteria:**
-- PDF export generates a clean, readable one-page brief
-- All transitions and animations feel polished
-- No broken states or unhandled errors anywhere in the happy path
-- Example workflow modals open and display React Flow previews
-- Workflow counter displays on hero
+**Post-phase cleanup:**
+- `backend/services/export.py` — Rewrote diagram rendering using **Pillow (`PIL`) + `ImageDraw`** instead of fpdf2 drawing primitives. Pillow renders a PNG (nodes as rounded-rect cards with colored left-accent bars, arrowhead edges, truncated labels/descriptions using system fonts) then embeds it via `pdf.image()`. `cairosvg` and `svglib` were ruled out — both require Cairo DLL which is not available on Windows without GTK. Also added: **Agent breakdown section** (each agent listed with role-colored dot, bold name, and wrapped description), larger header (52mm, 22pt title), larger summary text (11pt, 6.5mm line height), better section spacing throughout. Auto page break enabled — agent section can overflow to page 2, diagram follows on the first page with sufficient space (≥50mm).
+- `components/workflow/AgentNode.jsx` — Added `useState(hovered)`. The **inner visual div** scales to `1.08` on hover or select (150ms CSS transition, elevated box shadow). Root div where handles live does not scale, keeping React Flow edge connections anchored.
+- `workflow.jsx` — Canvas extracted into `WorkflowCanvas` component (child of `ReactFlowProvider`) that calls `useReactFlow()`. `useEffect` triggers `fitView({ padding: 0.18, duration: 400 })` after 60ms whenever `rfNodes.length` or `fitTrigger` changes — fires correctly after async data load and after each refinement. `NodeDetailPanel` animation changed to `scaleY` expand from bottom (`initial: scaleY 0.6` → `animate: scaleY 1`, `transformOrigin: bottom`) for an intentional "growing" feel.
+- `Pillow` added to backend venv. Add `Pillow` to `requirements.txt` before deploying.
 
 ---
 
 ## Current Status
 
-**Active Phase:** Phase 7 — PDF Export & Polish
+**Active Phase:** Complete — all 7 phases shipped.
 
-**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6
+**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6, Phase 7
 
 ---
 

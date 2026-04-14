@@ -86,6 +86,8 @@ export default function SharedWorkflowPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  useEffect(() => { document.title = 'Shared Workflow · CreatorFlow' }, [])
+
   useEffect(() => {
     getWorkflowByToken(token)
       .then(({ data }) => {

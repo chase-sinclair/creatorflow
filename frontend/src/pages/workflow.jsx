@@ -7,6 +7,8 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow'
 import Navbar from '../components/shared/Navbar'
 import ProgressIndicator from '../components/shared/ProgressIndicator'
@@ -97,15 +99,16 @@ function toRFEdges(wfEdges) {
   }))
 }
 
-// ── Node detail panel — slides up from canvas bottom ─────────────────────────
+// ── Node detail panel — expands up from canvas bottom ────────────────────────
 function NodeDetailPanel({ node, onClose }) {
   const d = node.data
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 24 }}
-      transition={{ duration: 0.25 }}
+      initial={{ opacity: 0, scaleY: 0.6, y: 12 }}
+      animate={{ opacity: 1, scaleY: 1, y: 0 }}
+      exit={{ opacity: 0, scaleY: 0.6, y: 12 }}
+      transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+      style={{ transformOrigin: 'bottom' }}
       className="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-5"
     >
       <div className="flex items-start justify-between gap-4 mb-4">
@@ -320,6 +323,52 @@ function Toast({ text }) {
   )
 }
 
+// ── Inner canvas — must live inside ReactFlowProvider to use useReactFlow ─────
+function WorkflowCanvas({ rfNodes, rfEdges, onNodesChange, onEdgesChange, onNodeClick, selectedNode, onPaneClick, fitTrigger }) {
+  const { fitView } = useReactFlow()
+
+  // Re-fit whenever nodes first load (async) or are updated via refinement
+  useEffect(() => {
+    if (rfNodes.length === 0) return
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.18, duration: 400 })
+    }, 60)
+    return () => clearTimeout(timer)
+  }, [rfNodes.length, fitTrigger]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <ReactFlow
+      nodes={rfNodes}
+      edges={rfEdges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      nodeTypes={NODE_TYPES}
+      onNodeClick={onNodeClick}
+      onPaneClick={onPaneClick}
+      fitView
+      fitViewOptions={{ padding: 0.18 }}
+      minZoom={0.3}
+      maxZoom={2}
+      defaultEdgeOptions={{ type: 'smoothstep' }}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background color="rgba(124,58,237,0.08)" gap={32} size={1} />
+      <Controls
+        className="!bg-[var(--color-surface-2)] !border-[var(--color-border)] !rounded-xl !shadow-lg"
+        showInteractive={false}
+      />
+      <MiniMap
+        nodeColor={n => {
+          const role = n.data?.role
+          return role === 'entry' ? '#10b981' : role === 'output' ? '#a855f7' : '#7c3aed'
+        }}
+        maskColor="rgba(12,13,26,0.8)"
+        className="!bg-[var(--color-surface-2)] !border !border-[var(--color-border)] !rounded-xl"
+      />
+    </ReactFlow>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WorkflowPage() {
   const { workflowId } = useParams()
@@ -335,9 +384,13 @@ export default function WorkflowPage() {
   const [toast, setToast] = useState(null)
   const [sharing, setSharing] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [fitTrigger, setFitTrigger] = useState(0)
+
+  // Page title
+  useEffect(() => { document.title = 'Your Workflow · CreatorFlow' }, [])
 
   // ── Load workflow data ─────────────────────────────────────────────────────
-  const applyWorkflowData = useCallback((data) => {
+  const applyWorkflowData = useCallback((data, refit = false) => {
     const wf = data.workflow_json || data
     setRfNodes(toRFNodes(wf.nodes || [], wf.edges || []))
     setRfEdges(toRFEdges(wf.edges || []))
@@ -347,6 +400,7 @@ export default function WorkflowPage() {
       platforms: data.platforms,
       automation_level: data.automation_level || wf.automation_level,
     })
+    if (refit) setFitTrigger(t => t + 1)
   }, [setRfNodes, setRfEdges])
 
   useEffect(() => {
@@ -368,7 +422,7 @@ export default function WorkflowPage() {
 
   // ── Refinement ─────────────────────────────────────────────────────────────
   const handleRefined = useCallback((data) => {
-    applyWorkflowData(data)
+    applyWorkflowData(data, true)
     setSelectedNode(null)
     showToast('Workflow updated.')
   }, [applyWorkflowData])
@@ -394,10 +448,16 @@ export default function WorkflowPage() {
     if (exporting) return
     setExporting(true)
     try {
-      await exportWorkflow(workflowId)
-      showToast('PDF export coming soon.')
+      const { data } = await exportWorkflow(workflowId)
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `workflow-${workflowId.slice(0, 8)}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('PDF downloaded.')
     } catch {
-      showToast('PDF export coming soon.')
+      showToast('Export failed — please try again.')
     } finally {
       setExporting(false)
     }
@@ -502,39 +562,18 @@ export default function WorkflowPage() {
         {/* Left: React Flow canvas + node detail */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <div className="flex-1 min-h-0">
-            <ReactFlow
-              nodes={rfNodes}
-              edges={rfEdges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              nodeTypes={NODE_TYPES}
-              onNodeClick={onNodeClick}
-              onPaneClick={() => setSelectedNode(null)}
-              fitView
-              fitViewOptions={{ padding: 0.25 }}
-              minZoom={0.3}
-              maxZoom={2}
-              defaultEdgeOptions={{ type: 'smoothstep' }}
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background
-                color="rgba(124,58,237,0.08)"
-                gap={32}
-                size={1}
+            <ReactFlowProvider>
+              <WorkflowCanvas
+                rfNodes={rfNodes}
+                rfEdges={rfEdges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeClick={onNodeClick}
+                selectedNode={selectedNode}
+                onPaneClick={() => setSelectedNode(null)}
+                fitTrigger={fitTrigger}
               />
-              <Controls
-                className="!bg-[var(--color-surface-2)] !border-[var(--color-border)] !rounded-xl !shadow-lg"
-                showInteractive={false}
-              />
-              <MiniMap
-                nodeColor={n => {
-                  const role = n.data?.role
-                  return role === 'entry' ? '#10b981' : role === 'output' ? '#a855f7' : '#7c3aed'
-                }}
-                maskColor="rgba(12,13,26,0.8)"
-                className="!bg-[var(--color-surface-2)] !border !border-[var(--color-border)] !rounded-xl"
-              />
-            </ReactFlow>
+            </ReactFlowProvider>
           </div>
 
           {/* Node detail panel */}

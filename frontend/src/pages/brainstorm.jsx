@@ -411,6 +411,9 @@ export default function BrainstormPage() {
   const [inputDisabled, setInputDisabled] = useState(false)
   const [step, setStep] = useState(1)
 
+  // Page title
+  useEffect(() => { document.title = 'Brainstorm · CreatorFlow' }, [])
+
   // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

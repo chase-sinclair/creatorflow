@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { getStats } from '../../lib/api'
 
 const NODE_POSITIONS = [
   { x: 40, y: 90, label: 'Trend Scanner', color: '#10b981' },
@@ -111,6 +113,13 @@ function WorkflowPreview() {
 
 export default function HeroSection() {
   const navigate = useNavigate()
+  const [workflowCount, setWorkflowCount] = useState(null)
+
+  useEffect(() => {
+    getStats()
+      .then(({ data }) => { if (data.workflow_count > 0) setWorkflowCount(data.workflow_count) })
+      .catch(() => {})
+  }, [])
 
   return (
     <section className="relative min-h-[75vh] flex items-center overflow-hidden">
@@ -178,6 +187,18 @@ export default function HeroSection() {
               See Examples
             </a>
           </motion.div>
+
+          {workflowCount && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="text-slate-600 text-sm mt-2"
+            >
+              <span className="text-violet-400 font-semibold">{workflowCount.toLocaleString()}</span>
+              {' '}workflows designed and counting
+            </motion.p>
+          )}
         </div>
 
         {/* Right: workflow preview */}

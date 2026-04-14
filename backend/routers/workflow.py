@@ -2,7 +2,7 @@ import secrets
 import string
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from agents.nodes.classifier import classifier_node
@@ -11,6 +11,7 @@ from agents.nodes.explainer import explainer_node
 from agents.nodes.refinement import refinement_node
 from db import models
 from services.cache import load_session_state
+from services.export import generate_pdf
 
 router = APIRouter(prefix="/api/workflow", tags=["workflow"])
 
@@ -208,11 +209,16 @@ async def share_workflow(workflow_id: str):
 
 @router.get("/{workflow_id}/export")
 async def export_workflow(workflow_id: str):
-    """PDF export — implemented in Phase 7."""
-    workflow = models.get_workflow(workflow_id)
-    if workflow is None:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "PDF export coming in Phase 7"},
+    """Generate and return a PDF workflow brief."""
+    try:
+        pdf_bytes = generate_pdf(workflow_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {e}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="workflow-{workflow_id[:8]}.pdf"'},
     )
