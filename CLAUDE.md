@@ -361,11 +361,32 @@ creatorflow/
 
 ---
 
+---
+
+### Phase 7.5 — Platform Selector & Dynamic Prompt Chips ✅ COMPLETE
+
+**What was built:**
+
+**Frontend:**
+- `components/brainstorm/PlatformSelector.jsx` — Full-screen centered card shown before the chat starts. Clean 4-column grid of 11 platform tiles (TikTok, Instagram, YouTube, Twitter/X, LinkedIn, Facebook, Reddit, Snapchat, Threads, Pinterest, Other). Each tile has an inline SVG icon at full color when selected / 60% opacity when not. Selection shows a violet ring border + animated checkmark badge. `whileTap` scale pulse on click. "Next →" button activates once at least 1 platform is picked (up to 5). Live "X selected" count below the grid.
+- `brainstorm.jsx` — Added `view` state (`'platforms'` | `'chat'`). Platform selector renders as a fixed overlay; main app shell fades in behind it once `view === 'chat'`. Transition: selector fades out, chat fades in. Platform tags strip appears below the ProgressIndicator showing all selected platforms as violet chips.
+- Dynamic prompt chips: after `handlePlatformsNext`, immediately calls `POST /api/content/prompt-suggestions` with the selected platforms. While loading, the welcome message renders 4 skeleton pulse chips. Once loaded, chips are replaced with the AI-generated suggestions. Falls back to static defaults on error.
+- "Build this" prefill from Discover page skips the platform selector and goes straight to chat.
+- `brainstormStart` now passes `platforms` array to the backend.
+
+**Backend:**
+- `backend/routers/content.py` — Added `POST /api/content/prompt-suggestions`. Accepts `{ platforms: [...] }`, makes a single Claude call (max_tokens: 400) to generate 4 tailored prompt ideas. Returns `{ suggestions: [...] }`. Has 3-retry logic for 529 errors and a hardcoded fallback.
+- `backend/routers/brainstorm.py` — `StartRequest` now accepts optional `platforms: list[str]`. Pre-populates `state["target_platforms"]` before running intake/clarification nodes.
+- `backend/agents/nodes/clarification.py` — Reads `target_platforms` from state. If set, builds a `platforms_note` string passed into both prompts; removes "platform" from `still_missing` list; initializes `missing_info` without mentioning platforms.
+- `backend/prompts/clarification_prompt.py` — Both prompts updated with `{platforms_note}` parameter. `GENERATE_QUESTION_PROMPT` includes explicit instruction not to re-ask about platforms when they're already known.
+
+---
+
 ## Current Status
 
-**Active Phase:** Complete — all 7 phases shipped.
+**Active Phase:** Complete — all 7 phases + 7.5 shipped.
 
-**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6, Phase 7
+**Completed Phases:** Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6, Phase 7, Phase 7.5
 
 ---
 

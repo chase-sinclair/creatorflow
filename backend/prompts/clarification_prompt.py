@@ -8,6 +8,8 @@ ASSESS_COMPLETENESS_PROMPT = """You are helping someone design a social media au
 Original idea:
 <idea>{raw_idea}</idea>
 
+{platforms_note}
+
 Questions asked so far:
 {questions_text}
 
@@ -15,7 +17,7 @@ Answers received:
 {answers_text}
 
 Based on the idea and conversation so far, assess whether we now know enough about:
-1. Which social media platform(s) to use
+1. Which social media platform(s) to use (may already be answered — see above)
 2. What the main automation goal is
 3. Whether they want fully automatic or human-in-the-loop (approval before posting)
 
@@ -31,6 +33,8 @@ GENERATE_QUESTION_PROMPT = """You are a friendly assistant helping someone desig
 Original idea:
 <idea>{raw_idea}</idea>
 
+{platforms_note}
+
 Questions asked so far:
 {questions_text}
 
@@ -43,5 +47,6 @@ Generate ONE short, friendly, plain-English question to find this out.
 - Never use technical jargon
 - Never ask multiple things at once
 - Keep it conversational, like a helpful colleague asking a quick follow-up
+- If platforms are already known (see above), do NOT ask about them again
 - Respond with just the question text, nothing else
 """

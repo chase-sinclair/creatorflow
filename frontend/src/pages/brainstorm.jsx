@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Navbar from '../components/shared/Navbar'
 import ProgressIndicator from '../components/shared/ProgressIndicator'
 import GeneratingOverlay from '../components/brainstorm/GeneratingOverlay'
-import { brainstormStart, brainstormRespond, generateWorkflow } from '../lib/api'
+import PlatformSelector from '../components/brainstorm/PlatformSelector'
+import { brainstormStart, brainstormRespond, generateWorkflow, getPromptSuggestions } from '../lib/api'
 
 // ── Logo icon used in CreatorFlow messages ───────────────────────────────────
 function BotAvatar() {
@@ -21,8 +22,8 @@ function BotAvatar() {
   )
 }
 
-const EXAMPLE_CHIPS = [
-  "Automatically post trending TikTok sounds as Instagram Reels",
+const DEFAULT_CHIPS = [
+  "Automatically post trending content as short-form videos",
   "Clip highlights from podcasts and upload to YouTube",
   "Schedule and publish weekly content across all my platforms",
   "Monitor brand mentions and auto-reply to comments",
@@ -49,18 +50,29 @@ function ChatMessage({ msg }) {
           </div>
           {msg.onChipClick && (
             <div className="flex flex-wrap gap-2">
-              {EXAMPLE_CHIPS.map((chip, i) => (
-                <motion.button
-                  key={chip}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, delay: 0.1 + i * 0.07 }}
-                  onClick={() => msg.onChipClick(chip)}
-                  className="px-3 py-1.5 rounded-full border border-violet-700/40 bg-violet-900/20 text-violet-300 text-xs hover:bg-violet-900/50 hover:border-violet-500/60 hover:text-white transition-all"
-                >
-                  {chip}
-                </motion.button>
-              ))}
+              {msg.chipsLoading ? (
+                // Skeleton chips while fetching suggestions
+                [1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    className="h-7 rounded-full bg-violet-900/20 border border-violet-800/20 animate-pulse"
+                    style={{ width: 120 + i * 18 }}
+                  />
+                ))
+              ) : (
+                (msg.chips || DEFAULT_CHIPS).map((chip, i) => (
+                  <motion.button
+                    key={chip}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, delay: 0.05 + i * 0.07 }}
+                    onClick={() => msg.onChipClick(chip)}
+                    className="px-3 py-1.5 rounded-full border border-violet-700/40 bg-violet-900/20 text-violet-300 text-xs hover:bg-violet-900/50 hover:border-violet-500/60 hover:text-white transition-all"
+                  >
+                    {chip}
+                  </motion.button>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -395,6 +407,12 @@ export default function BrainstormPage() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
+  // 'platforms' = show selector, 'chat' = conversation active
+  const [view, setView] = useState('platforms')
+  const [selectedPlatforms, setSelectedPlatforms] = useState([])
+  const [promptChips, setPromptChips] = useState(null)    // null = not loaded yet
+  const [chipsLoading, setChipsLoading] = useState(false)
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -419,24 +437,57 @@ export default function BrainstormPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  // Handle "Build this" prefill from Discover page
+  // Handle "Build this" prefill from Discover page — skip platform selector
   useEffect(() => {
     const prefill = location.state?.prefill
     if (prefill) {
+      setView('chat')
       setInput(prefill)
-      // Small delay so the input is visible before auto-submitting
-      setTimeout(() => handleSubmitIdea(prefill), 400)
+      setTimeout(() => handleSubmitIdea(prefill, []), 400)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Platform selection complete ──────────────────────────────────────────
+  const handlePlatformsNext = useCallback((platforms) => {
+    setSelectedPlatforms(platforms)
+    setView('chat')
+
+    // Update welcome message chips to show loading state immediately
+    setChipsLoading(true)
+    setMessages(prev => prev.map(m =>
+      m.id === 'welcome' ? { ...m, chipsLoading: true } : m
+    ))
+
+    // Fetch dynamic suggestions in background
+    getPromptSuggestions(platforms)
+      .then(({ data }) => {
+        setPromptChips(data.suggestions)
+        setMessages(prev => prev.map(m =>
+          m.id === 'welcome'
+            ? { ...m, chips: data.suggestions, chipsLoading: false }
+            : m
+        ))
+      })
+      .catch(() => {
+        // Silently fall back to defaults
+        setMessages(prev => prev.map(m =>
+          m.id === 'welcome' ? { ...m, chipsLoading: false } : m
+        ))
+      })
+      .finally(() => setChipsLoading(false))
+  }, [])
 
   const addMessage = (msg) => {
     setMessages(prev => [...prev, { id: Date.now() + Math.random(), ...msg }])
   }
 
   // ── First submit: call brainstorm/start ──────────────────────────────────
-  const handleSubmitIdea = async (ideaText) => {
+  const handleSubmitIdea = async (ideaText, platforms) => {
     const text = (ideaText ?? input).trim()
     if (!text) return
+
+    // Use passed platforms arg (for prefill case) or current selectedPlatforms
+    const platformsToSend = platforms !== undefined ? platforms : selectedPlatforms
 
     setInput('')
     setError(null)
@@ -445,7 +496,7 @@ export default function BrainstormPage() {
     setInputDisabled(true)
 
     try {
-      const { data } = await brainstormStart(text)
+      const { data } = await brainstormStart(text, platformsToSend)
       setSessionId(data.session_id)
       setIsTyping(false)
 
@@ -525,7 +576,7 @@ export default function BrainstormPage() {
   const handleSubmit = (e) => {
     e?.preventDefault()
     if (!sessionId) {
-      handleSubmitIdea()
+      handleSubmitIdea(undefined, undefined)
     } else {
       handleSubmitAnswer()
     }
@@ -579,12 +630,41 @@ export default function BrainstormPage() {
     <>
       {isGenerating && <GeneratingOverlay />}
 
-      <div className="flex flex-col min-h-screen">
+      {/* Platform selector — shown before chat starts */}
+      <AnimatePresence>
+        {view === 'platforms' && (
+          <PlatformSelector key="platform-selector" onNext={handlePlatformsNext} />
+        )}
+      </AnimatePresence>
+
+      <div className={`flex flex-col min-h-screen transition-opacity duration-300 ${view === 'platforms' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <Navbar />
 
         <div className="border-b border-[var(--color-border)]">
           <ProgressIndicator step={step} />
         </div>
+
+        {/* Platform tags strip — visible once platforms are selected */}
+        {selectedPlatforms.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border)] bg-[var(--color-surface)]"
+          >
+            <span className="text-slate-600 text-xs shrink-0">Platforms:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {selectedPlatforms.map(p => (
+                <span
+                  key={p}
+                  className="text-xs px-2 py-0.5 rounded-full bg-violet-900/30 border border-violet-700/40 text-violet-300"
+                >
+                  {p}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         <main className="flex-1 flex flex-col">
           <div className={`flex-1 flex flex-col w-full mx-auto px-4 lg:px-6 pt-6 pb-4 ${!sessionId ? 'lg:flex-row lg:items-start max-w-5xl gap-8' : 'max-w-2xl'}`}>
@@ -600,7 +680,7 @@ export default function BrainstormPage() {
                         msg.type === 'welcome'
                           ? {
                               ...msg,
-                              onChipClick: sessionId ? null : handleSubmitIdea,
+                              onChipClick: sessionId ? null : (chip) => handleSubmitIdea(chip, undefined),
                             }
                           : msg
                       }
@@ -684,7 +764,7 @@ export default function BrainstormPage() {
 
           </div>
         </main>
-      </div>
+      </div>{/* end main app shell */}
     </>
   )
 }

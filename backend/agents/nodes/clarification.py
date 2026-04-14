@@ -47,6 +47,17 @@ def clarification_node(state: CreatorFlowState) -> dict:
     answers = state.get("clarifying_answers", [])
     round_num = state.get("question_round", 0)
 
+    # Build platforms context string — injected into both prompts so Claude
+    # knows not to ask about platforms that were pre-selected by the user.
+    pre_platforms = state.get("target_platforms") or []
+    if pre_platforms:
+        platforms_note = (
+            f"Pre-selected platforms (already known — do NOT ask about these): "
+            f"{', '.join(pre_platforms)}"
+        )
+    else:
+        platforms_note = ""
+
     # If we have answers matching all asked questions, assess whether to continue
     if round_num > 0 and len(answers) >= len(questions):
         # Max rounds reached — proceed regardless
@@ -56,6 +67,7 @@ def clarification_node(state: CreatorFlowState) -> dict:
         # Ask Claude if we have enough info to proceed
         assess_prompt = ASSESS_COMPLETENESS_PROMPT.format(
             raw_idea=state["raw_idea"],
+            platforms_note=platforms_note,
             questions_text=_format_list(questions),
             answers_text=_format_list(answers),
         )
@@ -65,15 +77,24 @@ def clarification_node(state: CreatorFlowState) -> dict:
             if result.get("complete", False):
                 return {"ready_to_generate": True}
             missing = result.get("still_missing", ["goal"])
+            # If platform was pre-set, never count it as missing
+            if pre_platforms:
+                missing = [m for m in missing if m != "platform"]
+            if not missing:
+                return {"ready_to_generate": True}
             missing_info = " and ".join(missing)
         except (json.JSONDecodeError, KeyError):
             return {"ready_to_generate": True}
     else:
-        missing_info = "which social media platforms they want to use and what the main goal is"
+        if pre_platforms:
+            missing_info = "what the main goal is and whether they want fully automatic or human-in-the-loop"
+        else:
+            missing_info = "which social media platforms they want to use and what the main goal is"
 
     # Generate the next clarifying question
     question_prompt = GENERATE_QUESTION_PROMPT.format(
         raw_idea=state["raw_idea"],
+        platforms_note=platforms_note,
         questions_text=_format_list(questions),
         answers_text=_format_list(answers),
         missing_info=missing_info,

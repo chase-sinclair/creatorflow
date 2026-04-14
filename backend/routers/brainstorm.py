@@ -34,6 +34,7 @@ def _empty_state(raw_idea: str) -> CreatorFlowState:
 
 class StartRequest(BaseModel):
     raw_idea: str
+    platforms: list[str] = []
 
 
 @router.post("/start")
@@ -42,6 +43,7 @@ async def brainstorm_start(body: StartRequest):
     Submit the initial idea.
     Creates a session, runs intake + first clarification node.
     Returns: session_id, first question (or ready_to_generate if idea is crystal clear).
+    Accepts optional `platforms` — pre-populates target_platforms so the AI skips that question.
     """
     if not body.raw_idea.strip():
         raise HTTPException(status_code=400, detail="raw_idea cannot be empty")
@@ -50,8 +52,10 @@ async def brainstorm_start(body: StartRequest):
     session = models.create_session(body.raw_idea.strip())
     session_id = session["id"]
 
-    # Initialize state
+    # Initialize state, pre-seeding platforms if the user already selected them
     state = _empty_state(body.raw_idea.strip())
+    if body.platforms:
+        state["target_platforms"] = [p.strip() for p in body.platforms if p.strip()]
 
     # Run intake node
     intake_updates = intake_node(state)

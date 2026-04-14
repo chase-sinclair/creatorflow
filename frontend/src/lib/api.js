@@ -11,8 +11,8 @@ export const api = axios.create({
 
 export const checkHealth = () => api.get('/health')
 
-export const brainstormStart = (rawIdea) =>
-  api.post('/api/brainstorm/start', { raw_idea: rawIdea })
+export const brainstormStart = (rawIdea, platforms = []) =>
+  api.post('/api/brainstorm/start', { raw_idea: rawIdea, platforms })
 
 export const brainstormRespond = (sessionId, answer) =>
   api.post('/api/brainstorm/respond', { session_id: sessionId, answer })
@@ -40,3 +40,6 @@ export const getExamples = () => api.get('/api/content/examples')
 export const getIdeas = () => api.get('/api/content/ideas')
 
 export const getStats = () => api.get('/api/content/stats')
+
+export const getPromptSuggestions = (platforms) =>
+  api.post('/api/content/prompt-suggestions', { platforms })

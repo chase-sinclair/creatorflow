@@ -1,5 +1,19 @@
+import json
+import time
+
+import anthropic
 from fastapi import APIRouter
+from pydantic import BaseModel
+
 from db import models
+
+_anthropic_client = None
+
+def _get_client():
+    global _anthropic_client
+    if _anthropic_client is None:
+        _anthropic_client = anthropic.Anthropic()
+    return _anthropic_client
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 
@@ -212,3 +226,69 @@ async def get_stats():
         return {"workflow_count": count}
     except Exception:
         return {"workflow_count": 0}
+
+
+# ---------------------------------------------------------------------------
+# POST /api/content/prompt-suggestions
+# ---------------------------------------------------------------------------
+
+class SuggestionsRequest(BaseModel):
+    platforms: list[str] = []
+
+
+_FALLBACK_SUGGESTIONS = [
+    "Automatically schedule and publish posts across all my platforms",
+    "Monitor brand mentions and draft replies for my review",
+    "Repurpose my long-form content into short clips for social",
+    "Generate a weekly content calendar and post everything automatically",
+]
+
+@router.post("/prompt-suggestions")
+async def get_prompt_suggestions(body: SuggestionsRequest):
+    """
+    Generate 4 tailored automation prompt suggestions for the given platforms.
+    Called after platform selection so the brainstorm chips feel relevant.
+    """
+    platforms_str = ", ".join(body.platforms) if body.platforms else "social media"
+
+    prompt = f"""You are helping content creators and marketers discover social media automation ideas.
+
+The user has selected these platforms: {platforms_str}
+
+Generate exactly 4 short, specific automation prompt ideas tailored to these platforms.
+Each idea should be:
+- One sentence, plain English
+- Actionable and concrete (not generic)
+- Something a non-technical person would actually want
+- Specific to the platforms listed when possible
+
+Respond with a JSON array of exactly 4 strings, nothing else:
+["idea 1", "idea 2", "idea 3", "idea 4"]
+"""
+
+    client = _get_client()
+    for attempt in range(3):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=400,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.content[0].text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
+            suggestions = json.loads(text)
+            if isinstance(suggestions, list) and len(suggestions) >= 4:
+                return {"suggestions": suggestions[:4]}
+        except anthropic.APIStatusError as e:
+            if e.status_code == 529 and attempt < 2:
+                time.sleep(8 * (attempt + 1))
+                continue
+            break
+        except Exception:
+            break
+
+    return {"suggestions": _FALLBACK_SUGGESTIONS}
